@@ -1,0 +1,74 @@
+#!/bin/bash
+#
+# Stackup is an OpenStack instances backup tool
+#
+# Copyright (C) 2015 Gaëtan Trellu <gaetan.trellu@enovance.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA,
+# 02110-1301, USA.
+
+rootPath=$(dirname "${BASH_SOURCE[0]}")
+
+usage() {
+cat << EOF
+usage: $0
+
+This script backups OpenStack instances when they have been created on a volume.
+All volumes attached to an instance will be backuped (if the volume has been tagged as backup=True)
+
+OPTIONS:
+   --help		Show this help
+   --install-clients	Install all OpenStack clients (glance, nova, neutron, keystone, etc...)
+   --prepare-server	Install the necessary on the backup server
+   --start-backup	Start the backup instances
+   --purge-backup	Delete older backups based on the retention period
+   --get-backup		Mount the backup images
+   --delete-backup	Delete the volumes and the snapshots used for the backups
+   --use-ceph		Use RBD support to avoid using Glance (upload and download image)
+EOF
+}
+
+[[ $@ ]] || { usage; exit 1; }
+
+if [ -f /etc/stackup/stackup.conf ]
+then
+  source /etc/stackup/stackup.conf
+else
+  echo "Unable to find the /etc/stackup/stackup.conf config file"
+fi
+
+while getopts ":-:" opt;
+do
+  case $opt in
+    -)
+      case $OPTARG in
+        help)			usage ; exit 0 ;;
+        install-clients)	${rootPath}/lib/install-clients.sh ;;
+        prepare-server)		${rootPath}/lib/prepare-server.sh ;;
+        start-backup)		${rootPath}/lib/make-backup.sh ;;
+        purge-backup)		${rootPath}/lib/purge-backup.sh ;;
+        get-backup)		;;
+        delete-backup)		;;
+        use-ceph)		export ceph=true ;;
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]
+          then
+            echo "Unknown option --${OPTARG}" >&2
+          fi
+        ;;
+      esac
+    ;;
+  esac
+done
